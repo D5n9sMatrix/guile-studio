@@ -1,0 +1,591 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-beginner-reader.ss" "lang")((modname policyambient) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
+#!/usr/local/guile -s
+#!/usr/bin/racket
+
+; to watch the car start at 13 pixels from the left margin.
+;; It will stop when you close big-bang’s window. Remember
+;; that big-bang returns the current state of the world
+;; when the evaluation stops.
+
+;; Naturally, you don’t have to use the name “WorldState”
+;; for the class of data that represents the states of the
+;; world. Any name will do as long as you use it
+;; consistently for the signatures of the event-handling
+;; functions. Also, you don’t have to use the names tock,
+;; end?, or render. You may name these functions whatever
+;; you like, as long as you use the same names when you
+;; write down the clauses of the big-bang expression.
+;; Lastly, you may have noticed that you may list the
+;; clauses of a big-bang expression in any order as long
+;; as you list the initial state first.
+
+;; Let’s now work through the rest of the program design
+;; process, using the design recipe for functions and
+;; other design concepts spelled out so far.
+
+;; Exercise 39. Good programmers ensure that an image
+;; such as CAR can be enlarged or reduced via a single
+;; change to a constant definition.Good programmers
+;; establish a single point of control for all aspects
+;; of their programs, not just the graphical constants.
+;; Several chapters deal with this issue. We started the
+;; development of our car image with a single plain
+;; definition:
+
+(define WHEEL-RADIUS 5)
+
+;; The definition of WHEEL-DISTANCE is based on the
+;; wheel’s radius. Hence, changing WHEEL-RADIUS from 5
+;; to 10 doubles the size of the car image. This kind
+;; of program organization is dubbed single point of
+;; control, and good design employs this idea as much
+;; as possible.
+
+;; Develop your favorite image of an automobile so that
+;; WHEEL-RADIUS remains the single point of control.
+
+;; The next entry on the wish list is the clock tick
+;; handling function:
+
+;; WorldState -> WorldState 
+; moves the car by 3 pixels for every clock tick
+
+(define (tock cw) cw)
+
+;; Since the state of the world represents the distance
+;; between the left margin of the canvas and the car,
+;; and since the car moves at three pixels per clock tick,
+;; a concise purpose statement combines these two facts
+;; into one. This also makes it easy to create examples
+;; and to define the funct
+
+; WorldState -> WorldState 
+; moves the car by 3 pixels for every clock tick
+; examples: 
+;   given: 20, expect 23
+;   given: 78, expect 81
+
+(define (tock_pixels cw) (+ cw 3))
+
+;; The last design step calls for confirmation that
+;; the examples work as expected. So we click the
+;; RUN button and evaluate these expressions:
+
+
+
+;; Since the results are as expected, the design of
+;; tock is finished.
+
+;; Exercise 40. Formulate the examples as BSL tests,
+;; that is, using the check-expect form. Introduce a
+;; mistake. Re-run the tests.
+
+;; Our second entry on the wish list specifies a function
+;; that translates the state of the world into an image:
+
+; WorldState -> Image
+; places the car into the BACKGROUND scene,
+; according to the given world state
+
+(define (render cw) 'BACKGROUND)
+
+
+;; To make examples for a rendering function, we suggest
+;; arranging a table like the upper half of figure 19. It
+;; lists the given world states and the desired scenes.
+;; For your first few rendering functions, you may wish
+;; to draw these images by hand.
+
+(define BACKGROUND 9)
+(define Y-CAR BACKGROUND)
+(define (place-image CAR) 27)
+
+;; Even though this kind of image table is intuitive
+;; and explains what the running function is going to
+;; display—a moving car—it does not explain how the
+;; function creates this result. To get from here to
+;; there, we recommend writing down expressions like
+;; those in the lower half of figure 19 that create
+;; the images in the table. The capitalized names refer
+;; to the obvious constants: the image of a car, its
+;; fixed y-coordinate, and the background scene, which
+;; is currently empty.
+
+
+; WorldState -> Image
+; places the car into the BACKGROUND scene,
+; according to the given world state
+
+(define (render_car cw) (+ cw 1))
+
+;; This extended table suggests a pattern for the formula
+;; that goes into the body of the render function:
+
+(define (render_code cw) (+ cw 1))
+
+;; And that is mostly all there is to designing a simple
+;; world program.
+
+;; Exercise 41. Finish the sample problem and get the
+;; program to run. That is, assuming that you have solved
+;; exercise 39, define the constants BACKGROUND and Y-CAR.
+;; Then assemble all the function definitions, including
+;; their tests. When your program runs to your satisfaction,
+;; add a tree to the scenery. We used
+
+(define (underlay/xy cw) cw)
+(define (circle cw) cw)
+(define (rectangle cw) cw)
+(define (w1 cw) cw)
+(define pt 'w1) 
+(define tree (underlay/xy (w1 pt)))
+
+;; to create a tree-like shape. Also add a clause to
+;; the big-bang expression that stops the animation when
+;; the car has disappeared on the right side.
+
+;; After settling on an initial data representation for
+;; world states, a careful programmer may have to revisit
+;; this fundamental design decision during the rest of the
+;; design process. For example, the data definition for
+;; the sample problem represents the car as a point. But
+;; (the image of) the car isn’t just a mathematical point
+;; without width and height. Hence, the interpretation
+;; statement—the number of pixels from the left margin—is
+;; an ambiguous statement. Does this statement measure
+;; the distance between the left margin and the left
+;; end of the car? Its center point? Or even its right
+;; end? We ignored this issue here and leave it to BSL’s
+;; image primitives to make the decision for us. If you
+;; don’t like the result, revisit the data definition
+;; above and modify it or its interpretation statement
+;; to suit your taste.
+
+;; Exercise 42. Modify the interpretation of the sample
+;; data definition so that a state denotes the
+;; x-coordinate of the right-most edge of the car.
+
+;; Exercise 43. Let’s work through the same problem
+;; statement with a time-based data definition:
+
+
+;; Like the original data definition, this one also
+;; equates the states of the world with the class of
+;; numbers. Its interpretation, however, explains that
+;; the number means something entirely different.
+
+;; Design the functions tock and render. Then develop
+;; a big-bang expression so that once again you get an
+;; animation of a car traveling from left to right
+;; across the world’s canvas.
+
+;; How do you think this program relates to animate
+;; from Prologue: How to Program?
+
+;; Use the data definition to design a program that
+;; moves the car according to a sine wave. (Don’t try
+;; to drive like that.)
+
+;; We end the section with an illustration of mouse
+;; event handling, which also illustrates the advantages
+;; that a separation of view and model provide.
+
+;; Dealing with mouse movements is occasionally tricky
+;; because they aren’t exactly what they seem to be. For
+;; a first idea of why that is, read On Mice and Keys.
+
+;; Suppose we wish to allow people to move the car
+;; through “hyperspace”:
+
+;; Sample Problem Design a program that moves a car
+;; across the world canvas, from left to right, at
+;; the rate of three pixels per clock tick. If the
+;; mouse is clicked anywhere on the canvas, the car
+;; is placed at the x-coordinate of that click.
+
+;; The bold part is the expansion of the sample
+;; problem from above.
+
+;; When we are confronted with a modified problem,
+;; we use the design process to guide us to the
+;; necessary changes. If used properly, this process
+;; naturally determines what we need to add to our
+;; existing program to cope with the expansion of
+;; the problem statement. So here we go:
+
+;; There are no new properties, meaning we do not need
+;; new constants.
+
+;; The program is still concerned with just one property
+;; that changes over time, the x-coordinate of the car.
+;; Hence, the data representation suffices.
+
+;; The revised problem statement calls for a mouse-event
+;; handler, without giving up on the clock-based movement
+;; of the car. Hence, we state an appropriate wish:
+
+        ; WorldState Number Number String -> WorldState
+        ; places the car at x-mouse
+        ; if the given me is "button-down"
+(define x 10)
+(define y 10)
+(define x-mouse x)
+(define y-mouse y)
+(define xy 10)
+(define me xy) 
+(define x-position 10)
+(define hyper x-position)
+
+;; Lastly, we need to modify main to take care of
+;; mouse events. All this requires is the addition
+;; of an on-mouse clause that defers to the new entry
+;; on our wish list:
+
+(define (main ws) (+ hyper x-position ws))
+
+
+;; After all, the modified problem calls for dealing
+;; with mouse clicks and everything else remains the
+;; same.
+
+;; The rest is a mere matter of designing one more
+;; function, and for that we use the design recipe
+;; for functions.
+
+;; An entry on the wish list covers the first two steps
+;; of the design recipe for functions. Hence, our next
+;; step is to develop some functional examples:
+
+; WorldState Number Number String -> WorldState
+; places the car at x-mouse
+; if the given me is "button-down" 
+; given: 21 10 20 "enter"
+; wanted: 21
+; given: 42 10 20 "button-down"
+; wanted: 10
+; given: 42 10 20 "move"
+; wanted: 42
+
+(define (hyper-xy xy-position) me)
+
+;; The examples say that if the string argument is
+;; equal to "button-down", the function returns x-mouse;
+;; otherwise it returns x-position-of-car.
+
+;; Exercise 44. Formulate the examples as BSL tests.
+;; Click RUN and watch them fail.
+
+;; To complete the function definition, we must appeal
+;; to your fond memories from Prologue: How to Program,
+;; In the next chapter, we explain designing with cond
+;; in detail. specifically memories about the conditional
+;; form. Using cond, hyper is a two-line definition:
+
+; WorldState Number Number String -> WorldState
+; places the car at x-mouse
+; if the given me is "button-down"
+
+(define (hyper-x x-position) x-mouse)
+(define (hyper-y y-position) y-mouse)
+
+
+;; If you solved exercise 44, rerun the program
+;; and watch all tests succeed. Assuming the tests
+;; do succeed, evaluate
+
+
+;; in DrRacket’s interactions area and transport your
+;; car through hyperspace.
+
+;; You may wonder why this program modification is so
+;; straightforward. There are really two reasons. First,
+;; this book and its software strictly separate the data
+;; that a program tracks—the model—and the image that it
+;; shows—the view. In particular, functions that deal
+;; with events have nothing to do with how the state
+;; is rendered. If we wish to modify how a state is
+;; rendered, we can focus on the function specified
+;; in a to-draw clause. Second, the design recipes
+;; for programs and functions organize programs
+;; in the right way. If anything changes in a problem
+;; statement, following the design recipe a second time
+;; naturally points out where the original problem
+;; solution has to change. While this may look obvious
+;; for the simple kind of problems we are dealing with
+;; now, it is critical for the kind of problems that
+;; programmers encounter in the real world.
+
+
+;; 3.7 Virtual Pet Worlds
+
+;; This exercise section introduces the first two
+;; elements of a virtual pet game. It starts with
+;; just a display of a cat that keeps walking across
+;; the canvas. Of course, all the walking makes the
+;; cat unhappy and its unhappiness shows. As with
+;; all pets, you can try petting, which helps some,
+;; or you can try feeding, which helps a lot more.
+
+;; So let’s start with an image of our favorite cat:
+
+;; Copy the cat image and paste it into DrRacket, then
+;; give the image a name with define, just like above.
+
+;; Exercise 45. Design a “virtual cat” world program
+;; that continuously moves the cat from left to right.
+;; Let’s call it cat-prog and let’s assume it consumes
+;; the starting position of the cat. Furthermore, make
+;; the cat move three pixels per clock tick. Whenever
+;; the cat disappears on the right, it reappears on the
+;; left. You may wish to read up on the modulo function.
+
+;; Exercise 46. Improve the cat animation with a slightly
+;; different image:
+
+
+;; Adjust the rendering function from exercise 45 so
+;; that it uses one cat image or the other based on
+;; whether the x-coordinate is odd. Read up on odd?
+;; in the HelpDesk, and use a cond expression to
+;; select cat images.
+
+;; Exercise 47. Design a world program that maintains
+;; and displays a “happiness gauge.” Let’s call it
+;; gauge-prog, and let’s agree that happiness is a
+;; number between 0 and 100 (inclusive).
+
+;; The gauge-prog program consumes the current level of
+;; happiness. With each clock tick, the happiness level
+;; decreases by 0.1; it never falls below 0 though. Every
+;; time the down arrow key is pressed, happiness decreases
+;; by 1/5; every time the up arrow is pressed, happiness
+;; jumps by 1/3.
+
+;; To show the level of happiness, we use a scene with a
+;; solid, red rectangle with a black frame. For a
+;; happiness level of 0, the red bar should be gone;
+;; for the maximum happiness level of H, the bar should
+;; go all the way across the scene.
+
+;; Note When you know enough, we will explain how to
+;; combine the gauge program with the solution of
+;; exercise 45. Then we will be able to help the
+;; cat because as long as you ignore it, it becomes
+;; less happy. If you pet the cat, it becomes happier.
+;; If you feed the cat, it becomes much, much happier.
+;; So you can see why you want to know a lot more about
+;; designing world programs than these first three
+;; chapters can tell you.
+
+;; 4 Intervals, Enumerations, and Itemizations
+
+;; At the moment, you have four choices to represent
+;; information as data: numbers, strings, images, and
+;; Boolean values. For many problems this is enough,
+;; but there are many more for which these four
+;; collections of data in BSL (or other programming
+;; languages) don’t suffice. Actual designers need
+;; additional ways of representing information as
+;; data.
+
+;; At a minimum, good programmers must learn to design
+;; programs with restrictions on these built-in
+;; collections. One way to restrict is to enumerate
+;; a bunch of elements from a collection and to say
+;; that these are the only ones that are going to be
+;; used for some problem. Enumerating elements works
+;; only when there is a finite number of them. To
+;; accommodate collections with “infinitely” many
+;; elements, we introduce intervals, which are
+;; collections of elements that satisfy a specific
+;; property.
+
+;; Infinite may just mean “so large that enumerating
+;; the elements is entirely impractical.”
+
+;; Defining enumerations and intervals means
+;; distinguishing among different kinds of elements.
+;; To distinguish in code requires conditional functions,
+;; that is, functions that choose different ways of
+;; computing results depending on the value of some
+;; argument. Both Many Ways to Compute and Mixing It
+;; Up with Booleans illustrate with examples of how
+;; to write such functions. Neither section uses design,
+;; however. Both just present some new construct in your
+;; favorite programming language (that’s BSL), and offer
+;; some examples on how to use it.
+
+;; In this chapter, we discuss a general design for
+;; enumerations and intervals, new forms of data
+;; descriptions. We start with a second look at the
+;; cond expression. Then we go through three different
+;; kinds of data descriptions: enumerations, intervals,
+;; and itemizations. An enumeration lists every single
+;; piece of data that belongs to it, while an interval
+;; specifies a range of data. The last one, itemizations,
+;; mixes the first two, specifying ranges in one clause
+;; of its definition and specific pieces of data in
+;; another. The chapter ends with the general design
+;; strategy for such situations.
+
+
+;; 4.1 Programming with Conditionals
+
+;; Recall the brief introduction to conditional
+;; expressions in Prologue: How to Program. Since cond
+;; is the most complicated expression form in this book,
+;; let’s take a close look at its general shape:
+
+
+;; A cond expression starts with (cond, its keyword,
+;; and ends in ). Following the keyword, a programmer
+;; writes as many cond lines as needed; each cond line
+;; consists of two expressions, enclosed in opening and
+;; closing brackets: [ and ].
+
+;; A cond line is also known as a cond clause.
+
+;; Here is a function definition that uses a conditional
+;; expression:
+
+;; Like the mathematical example in Prologue: How to
+;; Program, this example illustrates the convenience
+;; of using cond expressions. In many problem contexts,
+;; a function must distinguish several different
+;; situations. With a cond expression, you can use one
+;; line per possibility and thus remind the reader of
+;; the code for the different situations from the
+;; problem statement.
+
+;; A note on pragmatics: Contrast cond expressions with
+;; if expressions from Mixing It Up with Booleans. The
+;; latter distinguish one situation from all others. As
+;; such, if expressions are much less suited for
+;; multi-situation contexts; they are best used when
+;; all we wish to say is “one or the other.” We
+;; therefore always use cond for situations when
+;; we wish to remind the reader of our code that
+;; some distinct situations come directly from data
+;; definitions. For other pieces of code, we use
+;; whatever construct is most convenient.
+
+;; When the conditions get too complex in a cond
+;; expression, you occasionally wish to say something
+;; like "in all other cases." For these kinds of problems,
+;; cond expressions permit the use of the else keyword
+;; for the very last cond line:
+
+;; If you make the mistake of using else in some other
+;; cond line, BSL in DrRacket signals an error:
+
+;; That is, BSL rejects grammatically incorrect phrases
+;; because it makes no sense to figure out what such a
+;; phrase might mean.
+
+;; Imagine designing a function that, as part of a
+;; game-playing program, computes some award at the
+;; end of the game. Here is its header:
+
+
+;; The variant on the left uses a cond with three
+;; full-fledged conditions; on the right, the function
+;; comes with an else clause. To formulate the last
+;; condition for the function on the left, you must
+;; calculate that (< 20 s) holds because
+
+
+;; While the calculation looks simple in this case,
+;; it is easy to make small mistakes and to introduce
+;; bugs into your program. It is therefore better to
+;; formulate the function definition as shown on the
+;; right, if you know that you want the exact
+;; opposite—called the complement—of all previous
+;; conditions in a cond.
+
+
+;; 4.2 Computing Conditionally
+
+;; From reading the Many Ways to Compute and Mixing
+;; It Up with Booleans, you roughly know how DrRacket
+;; evaluates conditional expressions. Let’s go over the
+;; idea a bit more precisely for cond expressions. Take
+;; another look at this definition:
+
+
+;; This function consumes a numeric score—a positive
+;; number—and produces a color.
+
+;; Just looking at the cond expression, you cannot
+;; predict which of the three cond clauses is going
+;; to be used. And that is the point of a function.
+;; The function deals with many different inputs,
+;; for example, 2, 3, 7, 18, 29. For each of these
+;; inputs, it may have to proceed in a different
+;; manner. Differentiating among the varying classes
+;; of inputs is the purpose of the cond expression.
+
+;; Take, for example
+
+;; (reward 3)
+
+;; You know that DrRacket replaces function applications
+;; with the function’s body after substituting the
+;; argument for the parameter. Hence,
+
+
+;; At this point, DrRacket evaluates one condition
+;; at a time. For the first one to evaluate to #true,
+;; it continues with the result expression:
+
+
+;; Here the first condition holds because 3 is
+;; between 0 and 10.
+
+;; Here is a second example:
+
+;; Note how the first condition evaluated to #false
+;; this time, and as mentioned in Many Ways to Compute
+;; the entire cond clause is dropped. The rest of the
+;; calculation proceeds as expected:
+
+
+;; Like the first condition, the second one also
+;; evaluates to #false and thus the calculation proceeds
+;; to the third cond line. The else tells DrRacket to
+;; replace the entire cond expression with the answer
+;; from this clause.
+
+;; Exercise 48. Enter the definition of reward followed
+;; by (reward 18) into the definitions area of DrRacket
+;; and use the stepper to find out how DrRacket evaluates
+;; applications of the function.
+
+;; Exercise 49. A cond expression is really just an
+;; expression and may therefore show up in the middle
+;; of another expression:
+
+;; (- 200 (cond [(> y 200) 0] [else y]))
+
+;; Use the stepper to evaluate the expression for y
+;; as 100 and 210.
+
+(define WIDTH 100)
+(define HEIGHT 60)
+(define (empty-scence-wsx WIDTH) (- WIDTH 100))
+(define (empty-scence-wsy HEIGHT) (- HEIGHT 60))
+(define MTSCAN-X (empty-scence-wsx WIDTH))
+(define MSTCAN-Y (empty-scence-wsy HEIGHT))
+
+;; Nesting cond expressions can eliminate common
+;; expressions. Consider the function for launching
+;; a rocket, repeated in figure 20. Both branches of
+;; the cond expression have the same shape except as
+;; indicated with ...:
+
+;; (place-image ROCKET X ... MTSCN)
+
+;; Reformulate create-rocket-scene.v5 to use a nested
+;; expression; the resulting function mentions
+;; place-image only once.

@@ -1,0 +1,142 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-beginner-reader.ss" "lang")((modname foowine) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
+#!/usr/local/guile -s
+#!/usr/bin/racket
+
+;; Interactive Programs Batch programs are a staple of
+;; business uses of computers, but the programs people
+;; encounter now are interactive. In this day and age,
+;; people mostly interact with desktop applications via
+;; a keyboard and a mouse. Furthermore, interactive
+;; programs can also react to computer-generated events,
+;; for example, clock ticks or the arrival of a message
+;; from some other computer.
+
+;; Exercise 32. Most people no longer use desktop
+;; computers just to run applications but also employ
+;; cell phones, tablets, and their cars’ information
+;; control screen. Soon people will use wearable
+;; computers in the form of intelligent glasses,
+;; clothes, and sports gear. In the somewhat more
+;; distant future, people may come with built-in
+;; bio computers that diectly interact with body
+;; functions. Think of ten different forms of events
+; that software applications on such computers will
+;; have to deal with.
+
+;; The purpose of this section is to introduce the
+;; mechanics of writing interactive BSL programs.
+;; Because many of the project-style examples in this
+;; book are interactive programs, we introduce the
+;; ideas slowly and carefully. You may wish to return
+;; to this section when you tackle some of the
+;; interactive programming projects; a second or
+;; third reading may clarify some of the advanced
+;; aspects of the mechanics.
+
+;; By itself, a raw computer is a useless piece of
+;; physical equipment. It is called hardware because
+;; you can touch it. This equipment becomes useful
+;; once you install software, that is, a suite of
+;; programs. Usually the first piece of software
+;; to be installed on a computer is an operating
+;; system. It has the task of managing the computer
+;; for you, including connected devices such as the
+;; monitor, the keyboard, the mouse, the speakers,
+;; and so on. The way it works is that when a user
+;; presses a key on the keyboard, the operating
+;; system runs a function that processes keystrokes.
+;; We say that the keystroke is a key event, and the
+;; function is an event handler. In the same vein,
+;; the operating system runs an event handler for
+;; clock ticks, for mouse actions, and so on.
+;; Conversely, after an event handler is done with
+;; its work, the operating system may have to change
+;; the image on the screen, ring a bell, print a
+;; document, or perform a similar action. To accomplish
+;; these tasks, it also runs functions that translate
+;; the operating system’s data into sounds, images,
+;; actions on the printer, and so on.
+
+;; Naturally, different programs have different needs.
+;; One program may interpret keystrokes as signals
+;; to control a nuclear reactor; another passes them
+;; to a word processor. To make a general-purpose
+;; computer work on these radically different tasks,
+;; different programs install different event handlers.
+;; That is, a rocket-launching program uses one kind
+;; of function to deal with clock ticks while an oven’s
+;; software uses a different kind.
+
+;; Designing an interactive program requires a way to
+;; designate some function as the one that takes care
+;; of keyboard events, another function for dealing
+;; with clock ticks, a third one for presenting some
+;; data as an image, and so forth. It is the task of
+;; an interactive program’s main function to communicate
+;; these designations to the operating system, that is,
+;; the software platform on which the program is launched.
+
+;; DrRacket is a small operating system, and BSL is one
+;; of its programming languages. The latter comes with
+;; the 2htdp/universe teachpack, which provides big-bang,
+;; a mechanism for telling the operating system which
+;; function deals with which event. In addition,
+;; big-bang keeps track of the state of the program.
+;; To this end, it comes with one required sub-expression,
+;; whose value becomes the initial state of the program.
+;; Otherwise big-bang consists of one required clause
+;; and many optional clauses. The required to-draw
+;; clause tells DrRacket how to render the state of
+;; the program, including the initial one. Each of
+;; the other, optional clauses tells the operating
+;; system that a certain function takes care of a
+;; certain event. Taking care of an event in BSL means
+;; that the function consumes the state of the program
+;; and a description of the event, and that it produces
+;; the next state of the program. We therefore speak
+;; of the current state of the program.
+
+;; Terminology In a sense, a big-bang expression
+;; describes how a program connects with a small
+;; segment of the world. This world might be a game
+;; that the program’s users play, an animation that
+;; the user watches, or a text editor that the user
+;; employs to manipulate some notes. Programming
+;; language researchers therefore often say that
+;; big-bang is a description of a small world: its
+;; initial state, how states are transformed, how
+;; states are rendered, and how big-bang may determine
+;; other attributes of the current state. In this
+;; spirit, we also speak of the state of the world
+;; and even call big-bang programs world programs.
+;; End
+
+;; Let’s study this idea step-by-step, starting with
+;; this definition:
+(define (x y) (x 1))
+(define (square s solid red) 10)
+(define (number->square s)
+  (square s "solid" "red"))
+
+;; The function consumes a positive number and
+;; produces a solid red square of that size. After
+;; clicking RUN, experiment with the function, like
+;; this:
+
+(number->square (* 10 5))
+(number->square (* 10 8))
+(number->square (* 10 9))
+
+
+;; It behaves like a batch program, consuming a number and
+;; producing an image, which DrRacket renders for you.
+
+;; Now try the following big-bang expression in the
+;; interactions area:
+(define num 10)
+(define val 10)
+(define to-draw num)
+(define (big-bang num val) 10)
+(big-bang 100 10)

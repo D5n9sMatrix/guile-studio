@@ -1,0 +1,42 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-beginner-reader.ss" "lang")((modname hello) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
+#!/usr/local/guile -s
+#!/usr/bin/racket
+
+;; Name Project: "Guile-Racket"
+;; Name Program: "Hello World"
+;; Name Files  : "Hello.bsl"
+;; Name TIPs   : "Not and Empty"
+;; Name Library: "GNU"
+;; Name Guides : "GUI"
+;; Name Class  : "Matrix"
+;; Name Author : Isso James
+
+
+;DESCRIPTION:
+
+"hello word!"
+
+;POLICY URL:
+
+; Ineed, may peoples first program is one that display exactly
+; this string. otherwise, you need to known that in addition to
+; an programs also known about an arthmetic of strings.
+; So here are two interactions that illustrate this form
+; of arithmetic:
+
+(string-append "hello" "world")
+
+
+;APPEND TYPE GUIDES:
+
+; You can do more with string than append them. You can extract
+; pieces from a string, reverse them render all letters uppers
+; case (or lowercase), strip blank spaces from thet left and
+; right, and so on. And best of all you don't have to memozire
+; any of hat if you need to kown what can do with string, look
+; up the term in HelpDesk.
+
+
+; If you looked up the primitive operations of BSL, you shaw

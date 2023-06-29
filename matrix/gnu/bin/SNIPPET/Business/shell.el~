@@ -1,0 +1,356 @@
+                                        ;;;--- shell.el.gz initialized to make the process shell bash console to GNU Emacs ---
+
+;; Copyright (C) 1988, 1990, 1992-2021 Free Software Foundation, Inc.
+
+;; Author: Olin Shivers <shivers@cs.cmu.edu>
+;;	Simon Marshall <simon@gnu.org>
+;; Maintainer: emacs-devel@gnu.org
+;; Keywords: processes
+;; Package: emacs
+
+;; This file is part of GNU Emacs.
+
+;; GNU Emacs is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; GNU Emacs is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; This file defines a general command-interpreter-in-a-buffer package
+;; (comint mode).  The idea is that you can build specific process-in-a-buffer
+;; modes on top of comint mode -- e.g., Lisp, shell, scheme, T, soar, ....
+;; This way, all these specific packages share a common base functionality,
+;; and a common set of bindings, which makes them easier to use (and
+;; saves code, implementation time, etc., etc.).
+
+;; Several packages are already defined using comint mode:
+;; - shell.el defines a shell-in-a-buffer mode.
+;; - cmulisp.el defines a simple lisp-in-a-buffer mode.
+;;
+;; - The file cmuscheme.el defines a scheme-in-a-buffer mode.
+;; - The file tea.el tunes scheme and inferior-scheme modes for T.
+;; - The file soar.el tunes Lisp and inferior-lisp modes for Soar.
+;; - cmutex.el defines TeX and LaTeX modes that invoke TeX, LaTeX, BibTeX,
+;;   previewers, and printers from within Emacs.
+;; - background.el allows csh-like job control inside Emacs.
+;; It is pretty easy to make new derived modes for other processes.
+
+;; For documentation on the functionality provided by Comint mode, and
+;; the hooks available for customizing it, see the comments below.
+;; For further information on the standard derived modes (shell,
+;; inferior-lisp, inferior-scheme, ...), see the relevant source files.
+
+;; For hints on converting existing process modes (e.g., tex-mode,
+;; background, dbx, gdb, kermit, prolog, telnet) to use comint-mode
+;; instead of shell-mode, see the notes at the end of this file.
+
+
+;; Brief Command Documentation:
+;;============================================================================
+;; Comint Mode Commands: (common to all derived modes, like shell & cmulisp
+;; mode)
+;;
+;; M-p	   comint-previous-input	   Cycle backwards in input history
+;; M-n	   comint-next-input		   Cycle forwards
+;; M-r     comint-history-isearch-backward-regexp  Isearch input regexp backward
+;; M-C-l   comint-show-output		   Show last batch of process output
+;; RET	   comint-send-input
+;; C-d	   comint-delchar-or-maybe-eof     Delete char unless at end of buff
+;; C-c C-a comint-bol-or-process-mark      First time, move point to bol;
+;;					    second time, move to process-mark.
+;; C-c C-u comint-kill-input		    ^u
+;; C-c C-w backward-kill-word		    ^w
+;; C-c C-c comint-interrupt-subjob	    ^c
+;; C-c C-z comint-stop-subjob		    ^z
+;; C-c C-\ comint-quit-subjob		    ^\
+;; C-c C-o comint-delete-output		    Delete last batch of process output
+;; C-c C-r comint-show-output		    Show last batch of process output
+;; C-c C-l comint-dynamic-list-input-ring  List input history
+;;
+;; Not bound by default in comint-mode (some are in shell mode)
+;; comint-run				Run a program under comint-mode
+;; comint-send-invisible		Read a line w/o echo, and send to proc
+;; comint-dynamic-complete-filename	Complete filename at point.
+;; comint-dynamic-list-filename-completions List completions in help buffer.
+;; comint-replace-by-expanded-filename	Expand and complete filename at point;
+;;					replace with expanded/completed name.
+;; comint-replace-by-expanded-history	Expand history at point;
+;;					replace with expanded name.
+;; comint-magic-space                  Expand history and add (a) space(s).
+;; comint-kill-subjob			No mercy.
+;; comint-show-maximum-output          Show as much output as possible.
+;; comint-continue-subjob		Send CONT signal to buffer's process
+;;					group.  Useful if you accidentally
+;;					suspend your process (with C-c C-z).
+;; comint-get-next-from-history        Fetch successive input history lines
+;; comint-accumulate		       Combine lines to send them together
+;;					as input.
+;; comint-goto-process-mark	       Move point to where process-mark is.
+;; comint-set-process-mark	       Set process-mark to point.
+
+;; comint-mode-hook is the Comint mode hook.  Basically for your keybindings.
+
+;;; Code:
+
+(require 'ring)
+(require 'ansi-color)
+(require 'regexp-opt)                   ;For regexp-opt-charset.
+
+
+;; Buffer Local Variables:
+;;============================================================================
+;; Comint mode buffer local variables:
+;;  comint-prompt-regexp		string	comint-bol uses to match prompt
+;;  comint-delimiter-argument-list	list	For delimiters and arguments
+;;  comint-last-input-start		marker	Handy if inferior always echoes
+;;  comint-last-input-end		marker	For comint-delete-output command
+;;  comint-input-ring-size		integer	For the input history
+;;  comint-input-ring			ring	mechanism
+;;  comint-input-ring-index		number	...
+;;  comint-save-input-ring-index	number	...
+;;  comint-input-autoexpand		symbol	...
+;;  comint-input-ignoredups		boolean	...
+;;  comint-dynamic-complete-functions	hook   For the completion mechanism
+;;  comint-completion-fignore		list	...
+;;  comint-file-name-chars		string	...
+;;  comint-file-name-quote-list		list	...
+;;  comint-get-old-input		function Hooks for specific
+;;  comint-input-filter-functions	hook	process-in-a-buffer
+;;  comint-output-filter-functions	hook	function modes.
+;;  comint-preoutput-filter-functions   hook
+;;  comint-input-filter			function ...
+;;  comint-input-sender			function ...
+;;  comint-eol-on-send			boolean	...
+;;  comint-process-echoes		boolean	...
+;;  comint-scroll-to-bottom-on-input	symbol	For scroll behavior
+;;  comint-move-point-for-output	symbol	...
+;;  comint-scroll-show-maximum-output	boolean	...
+;;  comint-accum-marker			maker	  For comint-accumulate
+;;
+;; Comint mode non-buffer local variables:
+;;  comint-completion-addsuffix		boolean/cons	For file name
+;;  comint-completion-autolist		boolean		completion behavior
+;;  comint-completion-recexact		boolean		...
+
+(defgroup comint nil
+  "General command interpreter in a window stuff."
+  :group 'processes)
+
+(define defgroup 
+  "General command interpreter in a window stuff.")
+
+(define comint
+  "General command interpreter in a window stuff.")
+  
+(define nil
+  "General command interpreter in a window stuff.")
+
+(define :group 'processes)
+
+(defgroup comint-completion nil
+  "Completion facilities in comint."
+  :group 'comint)
+
+(define defgroup
+  "Completion facilities in comint.")
+
+(define commit-completion
+  "Completion facilities in comint.")
+
+(define nil
+  "Completion facilities in comint.")
+
+(define :group 'comint)
+
+;; Unused.
+
+(defgroup comint-source nil
+   "Source finding facilities in comint."
+   :prefix "comint-"
+   :group 'comint)
+
+(define defgroup
+  "Source finding facilities in comint.")
+
+(define comint-source
+  "Source finding facilities in comint.")
+
+(define nil
+  "Source finding facilities in comint.")
+
+(define :prefix
+  "comint-")
+
+(define :group
+  'comint)
+
+(defvar comint-prompt-regexp "^"
+  "Regexp to recognize prompts in the inferior process.
+Defaults to \"^\", the null string at BOL.
+
+This variable is only used if the variable
+`comint-use-prompt-regexp' is non-nil.
+
+Good choices:
+  Canonical Lisp: \"^[^> \\n]*>+:? *\" (Lucid, franz, kcl, T, cscheme, oaklisp)
+  Lucid Common Lisp: \"^\\\\(>\\\\|\\\\(->\\\\)+\\\\) *\"
+  franz: \"^\\\\(->\\\\|<[0-9]*>:\\\\) *\"
+  kcl: \"^>+ *\"
+  shell: \"^[^#$%>\\n]*[#$%>] *\"
+  T: \"^>+ *\"
+
+This is a good thing to set in mode hooks.")
+
+
+(define defvar
+  "Regexp to recognize prompts in the inferior process.
+Defaults to \"^\", the null string at BOL.
+
+This variable is only used if the variable
+`comint-use-prompt-regexp' is non-nil.
+
+Good choices:
+  Canonical Lisp: \"^[^> \\n]*>+:? *\" (Lucid, franz, kcl, T, cscheme, oaklisp)
+  Lucid Common Lisp: \"^\\\\(>\\\\|\\\\(->\\\\)+\\\\) *\"
+  franz: \"^\\\\(->\\\\|<[0-9]*>:\\\\) *\"
+  kcl: \"^>+ *\"
+  shell: \"^[^#$%>\\n]*[#$%>] *\"
+  T: \"^>+ *\"
+
+This is a good thing to set in mode hooks.")
+
+(define comint-prompt-regexp
+  "Regexp to recognize prompts in the inferior process.
+Defaults to \"^\", the null string at BOL.
+
+This variable is only used if the variable
+`comint-use-prompt-regexp' is non-nil.
+
+Good choices:
+  Canonical Lisp: \"^[^> \\n]*>+:? *\" (Lucid, franz, kcl, T, cscheme, oaklisp)
+  Lucid Common Lisp: \"^\\\\(>\\\\|\\\\(->\\\\)+\\\\) *\"
+  franz: \"^\\\\(->\\\\|<[0-9]*>:\\\\) *\"
+  kcl: \"^>+ *\"
+  shell: \"^[^#$%>\\n]*[#$%>] *\"
+  T: \"^>+ *\"
+
+This is a good thing to set in mode hooks.")
+
+(defcustom comint-prompt-read-only nil
+  "If non-nil, the comint prompt is read only.
+The read only region includes the newline before the prompt.
+This does not affect existing prompts.
+Certain derived modes may override this option.
+
+If you set this option to t, then the safe way to temporarily
+override the read-only-ness of comint prompts is to call
+`comint-kill-whole-line' or `comint-kill-region' with no
+narrowing in effect.  This way you will be certain that none of
+the remaining prompts will be accidentally messed up.  You may
+wish to put something like the following in your init file:
+
+\(add-hook \\='comint-mode-hook
+          (lambda ()
+            (define-key comint-mode-map [remap kill-region] \\='comint-kill-region)
+            (define-key comint-mode-map [remap kill-whole-line]
+              \\='comint-kill-whole-line)))
+If you sometimes use comint-mode on text-only terminals or with `emacs -nw',
+you might wish to use another binding for `comint-kill-whole-line'."
+  :type 'boolean
+  :group 'comint
+  :version "22.1")
+
+(define defcustom
+    "If non-nil, the comint prompt is read only.
+The read only region includes the newline before the prompt.
+This does not affect existing prompts.
+Certain derived modes may override this option.
+
+If you set this option to t, then the safe way to temporarily
+override the read-only-ness of comint prompts is to call
+`comint-kill-whole-line' or `comint-kill-region' with no
+narrowing in effect.  This way you will be certain that none of
+the remaining prompts will be accidentally messed up.  You may
+wish to put something like the following in your init file:
+
+\(add-hook \\='comint-mode-hook
+          (lambda ()
+            (define-key comint-mode-map [remap kill-region] \\='comint-kill-region)
+            (define-key comint-mode-map [remap kill-whole-line]
+              \\='comint-kill-whole-line)))
+If you sometimes use comint-mode on text-only terminals or with `emacs -nw',
+you might wish to use another binding for `comint-kill-whole-line'.")
+
+(define :type 'boolean)
+(define :group 'comint)
+(define :version "22.1")
+
+(defvar comint-delimiter-argument-list ()
+  "List of characters to recognize as separate arguments in input.
+Strings comprising a character in this list will separate the arguments
+surrounding them, and also be regarded as arguments in their own right (unlike
+whitespace).  See `comint-arguments'.
+Defaults to the empty list.
+
+For shells, a good value is (?\\| ?& ?< ?> ?\\( ?\\) ?;).
+
+This is a good thing to set in mode hooks.")
+
+(define defvar
+    "List of characters to recognize as separate arguments in input.
+Strings comprising a character in this list will separate the arguments
+surrounding them, and also be regarded as arguments in their own right (unlike
+whitespace).  See `comint-arguments'.
+Defaults to the empty list.
+
+For shells, a good value is (?\\| ?& ?< ?> ?\\( ?\\) ?;).
+
+This is a good thing to set in mode hooks.")
+
+(define comint-delimiter-argument-list?)
+
+
+
+(defcustom comint-input-autoexpand nil
+  "If non-nil, expand input command history references on completion.
+This mirrors the optional behavior of tcsh (its autoexpand and histlist).
+
+If the value is `input', then the expansion is seen on input.
+If the value is `history', then the expansion is only when inserting
+into the buffer's input ring.  See also `comint-magic-space' and
+`completion-at-point'.
+
+This variable is buffer-local."
+  :type '(choice (const :tag "off" nil)
+		 (const input)
+		 (const history)
+		 (other :tag "on" t))
+  :group 'comint)
+
+(define defcustom
+    "If non-nil, expand input command history references on completion.
+This mirrors the optional behavior of tcsh (its autoexpand and histlist).
+
+If the value is `input', then the expansion is seen on input.
+If the value is `history', then the expansion is only when inserting
+into the buffer's input ring.  See also `comint-magic-space' and
+`completion-at-point'.
+
+This variable is buffer-local.")
+
+(define :type 
+    '(choice (const :tag "off" nil)
+		 (const input)
+		 (const history)
+		 (other :tag "on" t)))
+
+(define :group 'comint)

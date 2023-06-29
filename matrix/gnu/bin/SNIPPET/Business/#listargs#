@@ -1,0 +1,811 @@
+
+
+; 3.3.2 Tail  calls Scheme is “properly tail  recursive”, meaning that
+
+; tail calls or recursions from certain  con- texts do not consume stack
+; space  or other  resources and  can therefore  be used  on arbitrarily
+; large  data  or for  an  arbitrarily  long calculation.  Consider  for
+; example,
+
+(define (foo n) (display n) (newline) (foo (1+ n)))
+        (foo 1)
+
+
+; 1 2  3 ...   foo prints  numbers infinitely,  starting from  the given
+; n. It’s implemented by printing n  then recursing to itself to print n
+; + 1  and so on.  This recursion  is a tail  call, it’s the  last thing
+; done, and  in Scheme such  tail calls can  be made without  limit.  Or
+; consider a  case where a  value is returned,  a version of  the SRFI-1
+; last  function  (see Section  7.5.3.3  [SRFI-1  Selectors], page  592)
+; returning the last element of a list,
+
+; (define (my-last lst) (if (null?
+;  (cdr lst)) (car lst)  (my-last (cdr lst)))) (my-last ’(1 2  3))
+
+; If the list  has more than one element, my-last  applies itself to the
+; cdr. This recursion is a tail call,  there’s no code after it, and the
+; return value is  the return value from that call.   In Scheme this can
+; be used on  an arbitrarily long list argument.  A  proper tail call is
+; only  available from  certain contexts,  namely the  following special
+; form positions,
+
+;  and — last expression
+;  begin — last expression
+;  case —  last expression in  each clause
+;   cond — last  expression in
+
+; each clause,  and the call to  a => procedure is  a tail call   do —
+; last result expression
+
+;  if — “true” and “false” leg expressions
+;  lambda — last expression in body
+;  let, let*, letrec, let-syntax, letrec-syntax
+
+; — last expression in body
+
+;  or — last expression
+; The following core functions make tail calls,
+
+;  apply — tail call to given procedure
+;  call-with-current-continuation — tail call to the procedure
+; receiving the new continuation
+
+;  call-with-values — tail call to the values-receiving procedure
+;  eval — tail call to evaluate the form
+;  string-any, string-every — tail call to predicate on the last
+
+; character (if that pointis reached)  The above are just core functions
+; and special forms. Tail calls in  other modules are described with the
+; relevant documentation, for example SRFI-1  any and every (see Section
+; 7.5.3.7 [SRFI-1 Searching],  page 598).  It will be noted  there are a
+; lot of places which could potentially  be tail calls, for instance the
+; last  call in  a for-each,  but  only those  explicitly described  are
+; guaranteed.
+
+; 3.3.3 Using the Guile REPL
+
+; If you start  Guile without specifying a particular program  for it to
+; execute, Guile enters its standard Read  Evaluate Print Loop — or REPL
+; for short.  In this mode,  Guile repeatedly  reads in the  next Scheme
+; expression that the user types, evaluates it, and prints the resulting
+; value.  The  REPL is a  useful mechanism for exploring  the evaluation
+; behaviour  described   in  the   previous  subsection.  If   you  type
+; string-append,  for example,  the  REPL replies  #<primitive-procedure
+; string-append>, illustrating  the relationship between the  vari- able
+; string-append and  the procedure  value stored  in that  variable.  In
+; this manual, the  notation ) is used to mean  “evaluates to”. Wherever
+; you see an example of the form expression ) result feel free to try it
+; out yourself by  typing expression into the REPL and  checking that it
+; gives the expected result.
+
+; 3.3.4 Summary of Common Syntax
+
+;  This  subsection  lists  the  most  commonly  used  Scheme  syntactic
+; expressions, simply so  that you will recognize  common special syntax
+; when you  see it. For  a full description  of each of  these syntaxes,
+; follow the appropriate reference.  lambda (see Section 6.7.1 [Lambda],
+; is used  to construct procedure  objects.  define (see  Section 6.10.1
+; [Top Level],  is used  to create  a new variable  and set  its initial
+; value.
+
+; set! (see Section  6.10.1 [Top Level], is used to  modify an existing
+; variable’s value.   let, let*  and letrec  (see Section  6.10.2 [Local
+; Bindings], create an inner lexical environment for the evaluation of a
+; sequence of expressions,  in which a specified set  of local variables
+; is bound to  the values of a corresponding set  of expressions. For an
+; introduction  to environments,  see See  Section 3.4  [About Closure],
+; begin (see Section 6.11.1 [begin],  executes a sequence of expressions
+; in order and returns the value of the last expression.  Note that this
+; is  not the  same  as a  procedure which  returns  its last  argument,
+; because the evaluation  of a procedure invocation  expression does not
+; guarantee  to evaluate  the  arguments  in order.   if  and cond  (see
+; Section  6.11.2  [Conditionals],  provide  conditional  evaluation  of
+; argument  expressions  depending on  whether  one  or more  conditions
+; evaluate   to   “true”  or   “false”.    case   (see  Section   6.11.2
+; [Conditionals],   provides   conditional    evaluation   of   argument
+; expressions depending  on whether  a variable has  one of  a specified
+; group  of  values.  and  (see  Section  6.11.3  [and or],  executes  a
+; sequence of expressions in order until either there are no expressions
+; left, or  one of them  evaluates to  “false”.  or (see  Section 6.11.3
+; [and or],  executes a  sequence of expressions  in order  until either
+; there are no expressions left, or one of them evaluates to “true”.
+
+; 3.4 The Concept of Closure
+
+; The concept of closure is the idea that a lambda expression “captures”
+; the variable bindings that are in lexical scope at the point where the
+; lambda  expression  occurs.  The   procedure  created  by  the  lambda
+; expression  can refer  to and  mutate the  captured bindings,  and the
+; values  of  those  bindings  persist between  procedure  calls.   This
+; section explains and  explores the various parts of this  idea in more
+; detail.
+
+; 3.4.1 Names, Locations, Values and Environments
+
+; We said earlier that a variable name in a Scheme program is associated
+; with  a   location  in  which  any   kind  of  Scheme  value   may  be
+; stored.  (Incidentally, the  term “vcell”  is often  used in  Lisp and
+; Scheme circles as an alternative to  “location”.) Thus part of what we
+; mean when we talk about “creating  a variable” is in fact establishing
+; an association  between a  name, or  identifier, that  is used  by the
+; Scheme  program code,  and the  variable location  to which  that name
+; refers. Although the value that is stored in that location may change,
+; the location to which a given name  refers is always the same.  We can
+; illustrate this  by breaking down  the operation of the  define syntax
+                                        ; into three parts:  define
+
+;  creates a new location
+
+;  establishes  anassociation  between  that location  and  the  name
+; specified as the firstargument of the define expression
+
+;  stores in that location the value obtained by evaluating the second
+; argument of the define expression.
+
+
+; A collection of associations between  names and locations is called an
+; environment. When you  create a top level variable in  a program using
+; define, the  name-location association for  that variable is  added to
+; the “top level” environment. The “top level” environment also includes
+; name-location associations for all the procedures that are supplied by
+; standard Scheme.   It is  also possible  to create  environments other
+; than  the  top  level  one,   and  to  create  variable  bindings,  or
+; name-location associations,  in those environments. This  ability is a
+; key ingredient  in the concept  of closure; the next  subsection shows
+; how it is done.
+
+
+; 3.4.2 Local Variables and Environments
+
+; We  have seen  how to  create top  level variables  using the  define
+; syntax (see Section 3.1.3 [Definition].   It is often useful to create
+; variables that are more limited in their scope, typically as part of a
+; procedure body.  In Scheme, this is  done using the let syntax, or one
+; of its modified forms let* and letrec. These syntaxes are described in
+; full later  in the manual  (see Section 6.10.2 [Local  Bindings]. Here
+; our purpose is to illustrate their use just enough that we can see how
+; local variables  work.  For example,  the following code uses  a local
+; variable s to simplify the computation of the area of a triangle given
+; the lengths of its three sides.
+
+(define a 5.3)
+(define b  4.7)
+(define c 2.8)
+(define area (let ((s  (/ (+ a b c) 2))) (sqrt (* s
+             (- s a) (- s b) (- s c)))))
+
+; The effect of  the let expression is to create  a new environment and,
+; within this environ- ment, an association between the name s and a new
+; location whose initial value is obtained by evaluating
+
+(/  (+  a  b c)  2)
+
+; The
+; expressions in the body of the let, namely
+
+; (sqrt (* s (- s a) (- s b)
+;         (- s c))))
+
+; are then  evaluated in  the context  of the  new environment,  and the
+; value of the last expression evaluated  becomes the value of the whole
+; let expression, and therefore the value of the variable area.
+
+
+; 3.4.3 Environment Chaining
+
+; In  the  example  of  the  previous subsection,  we  glossed  over  an
+; important point. The body of the let expression in that example refers
+; not only to the local variable s,  but also to the top level variables
+; a,  b,  c  and  sqrt.  (sqrt is  the  standard  Scheme  procedure  for
+; calculating  a square  root.) If  the body  of the  let expression  is
+; evaluated in  the context of the  local let environment, how  does the
+; evaluation get at the values of these top level variables?  The answer
+; is  that   the  local   environment  created   by  a   let  expression
+; automatically has a reference to  its containing environment — in this
+; case  the top  level environment  —  and that  the Scheme  interpreter
+; automatically  looks   for  a  variable  binding   in  the  containing
+; environment  if it  doesn’t find  one in  the local  environment. More
+; generally, every  environ- ment  except for  the top  level one  has a
+; reference  to its  containing environment,  and the  interpreter keeps
+; searching back up  the chain of environments — from  most local to top
+
+; level
+;—  until it  either finds  a variable  binding for  the required
+; identifier or exhausts the chain.
+
+; This description also determines what  happens when there is more than
+; one  variable binding  with  the same  name.  Suppose, continuing  the
+; example of the previous subsection, that there was also a pre-existing
+; top level variable s created by the expression:
+
+(define s "Some beans, my lord!")
+
+; Then  both the  top level  environment and  the local  let environment
+; would contain bindings for the name s. When evaluating code within the
+; let body,  the interpreter looks  first in the local  let environment,
+; and so finds the binding for s created by the let syntax.  Even though
+; this environment has  a reference to the top  level environment, which
+; also  has a  binding for  s,  the interpreter  doesn’t get  as far  as
+; looking  there.  When  evaluating  code  outside  the  let  body,  the
+; interpreter looks up  variable names in the top  level environment, so
+; the name s refers to the top level variable.  Within the let body, the
+; binding for s  in the local environment is said  to shadow the binding
+; for s in the top level environment.
+
+; 3.4.4 Lexical Scope
+
+; The rules  that we have  just been describing  are the details  of how
+; Scheme  implements “lexical  scoping”. This  subsection takes  a brief
+; diversion  to explain  what  lexical  scope means  in  general and  to
+; present an example of non-lexical scoping.  “Lexical scope” in general
+; is the idea that
+
+;  an identifier  at a particular place in a  program always refers to
+; the same variable location
+
+; —  where “always” means
+
+; “every time that  the containing expression is executed”,  and that
+
+;   the variable  location to  which it  refers can  be determined  by
+; static examination of the source code context in which that identifier
+; appears, without having to consider  the flow of execution through the
+; program as a whole.  In practice, lexical scoping is the norm for most
+; programming  languages, and  probably  corresponds to  what you  would
+; intuitively consider to be “normal”. You may even be wondering how the
+; situation could possibly
+
+;  — and  usefully — be otherwise.  To demonstrate that another  kind of
+; scoping  is possible,  therefore, and  to compare  it against  lexical
+; scoping, the  following subsection presents an  example of non-lexical
+; scoping  and examines  in detail  how  its behavior  differs from  the
+; corresponding lexically scoped code.
+
+; 3.4.4.1 An Example of Non-Lexical Scoping
+
+; To demonstrate that non-lexical scoping  does exist and can be useful,
+; we  present the  fol-  lowing  example from  Emacs  Lisp,  which is  a
+; “dynamically scoped” language.
+
+; (defvar currency-abbreviation "USD")
+; (defun currency-string (units hundredths)
+; (concat currency-abbreviation
+; (number-to-string units)
+; "."
+; (number-to-string hundredths)))
+; (defun french-currency-string (units hundredths)
+; (let ((currency-abbreviation "FRF"))
+;(currency-string units hundredths)))
+
+; The  question  to   focus  on  here  is:  what   does  the  identifier
+; currency-abbreviation refer  to in  the currency-string  function? The
+; answer, in Emacs Lisp, is that  all variable bindings go onto a single
+; stack, and  that currency-abbreviation  refers to the  topmost binding
+; from  that  stack  which  has the  name  “currency-abbreviation”.  The
+; binding that  is created by  the defvar form,  to the value  "USD", is
+; only relevant if  none of the code that  calls currency-string rebinds
+; the  name  “currency-abbreviation”  in   the  meanwhile.   The  second
+; function french-currency-string works precisely by taking advantage of
+; this   behaviour.   It   creates   a  new   binding   for   the   name
+; “currency-abbreviation” which  over- rides the one  established by the
+; defvar form.
+
+
+;; Note! This is Emacs Lisp evaluation, not Scheme!
+;; (french-currency-string 33 44))
+;; "FRF33.44"
+;; Now let’s look at the corresponding, lexically scoped Scheme code:
+
+
+(define currency-abbreviation "USD")
+(define (currency-string units hundredths)
+(string-append currency-abbreviation
+(number->string units)
+"."
+(number->string hundredths)))
+(define (french-currency-string units hundredths)
+(let ((currency-abbreviation "FRF"))
+  (currency-string units hundredths)))
+
+; According to  the rules of lexical  scoping, the currency-abbreviation
+; in currency- string  refers to the variable location  in the innermost
+; environment  at  that point  in  the  code  which  has a  binding  for
+; currency-abbreviation, which is the variable location in the top level
+; environment created by the preceding
+
+; (define currency-abbreviation ...)
+
+; expression.    In   Scheme,  therefore,   the   french-currency-string
+; procedure does  not work as in-  tended. The variable binding  that it
+; creates for “currency-abbreviation”  is purely local to  the code that
+; forms the body of the let expression. Since this code doesn’t directly
+; use the name “currency-abbreviation” at all, the binding is pointless.
+
+; (french-currency-string 33 44) ) "USD33.44"
+
+; This  begs  the question  of  how  the  Emacs  Lisp behaviour  can  be
+; implemented in  Scheme.  In general,  this is a design  question whose
+; answer depends  upon the problem  that is  be- ing addressed.  In this
+; case, the best answer may be that currency-string should be redesigned
+; so that it  can take an optional third argument.  This third argument,
+; if supplied, is interpreted as  a currency abbreviation that overrides
+; the default.
+
+
+; It  is possible  to change  french-currency-string so  that it  mostly
+; works without  changing currency-string,  but the fix  is inelegant,
+; and    susceptible    to    interrupts   that    could    leave    the
+; currency-abbreviation variable in the wrong state:
+
+(define (french-currency-string units hundredths)
+(set! currency-abbreviation "FRF")
+(let ((result (currency-string units hundredths)))
+(set! currency-abbreviation "USD")
+result))
+
+; The key point here is that the  code does not create any local binding
+; for the  identifier currency-abbreviation, so all  occurrences of this
+; identifier refer to the top level variable.
+
+; 3.4.5 Closure
+
+; Consider a let expression that doesn’t contain any lambdas:
+
+(let ((s (/ (+ a b c) 2)))
+  (sqrt (* s (- s a) (- s b) (- s c))))
+
+; When the Scheme interpreter evaluates this, it
+
+;  creates a new environment with a reference to the environment that
+; was current when it encountered the let.
+
+;  creates a variable binding for s in the new environment, with
+; value given by.
+
+(/ (+ a bc) 2)
+
+;  evaluates the expression in the body of the let in the context
+; of the new local environment, and remembers the value V.
+
+;  forgets the local environment
+
+;  continues evaluating the expression that contained the let,
+; using the value V as the value of the let expression, in the context
+; of the containing environment.
+
+; After the  let expression  has been  evaluated, the  local environment
+; that was created  is simply forgotten, and there is  no longer any way
+; to access  the binding that  was created  in this environment.  If the
+; same code  is evaluated again,  it will  follow the same  steps again,
+; creating a  second new local  environment that has no  connection with
+; the first,  and then  forgetting this  one as well.   If the  let body
+; contains a  lambda expression, however,  the local environment  is not
+; forgotten. Instead, it  becomes associated with the  procedure that is
+; created by  the lambda expression,  and is reinstated every  time that
+; that procedure is  called. In detail, this works as  follows.
+
+;   When the  Scheme  interpreter evaluates  a  lambda expression,  to
+; create a procedure  object, it stores the current  environment as part
+; of the procedure definition.
+
+;  Then, whenever that procedure is called, the interpreter reinstates
+; the  environment  that  is  stored in  the  procedure  definition  and
+; evaluates the procedure  body within the context  of that environment.
+; The  result is  that the  procedure body  is always  evaluated in  the
+; context of the  environment that was current when  the procedure was
+; created.  This is  what is meant by closure. The  next few subsections
+; present examples that explore the usefulness of this concept.
+
+; 3.4.6 Example 1: A Serial Number Generator
+
+; This  example uses  closure  to  create a  procedure  with a  variable
+; binding that is  private to the procedure, like a  local variable, but
+; whose value persists between procedure calls.
+
+(define (make-serial-number-generator)
+(let ((current-serial-number 0))
+(lambda ()
+(set! current-serial-number (+ current-serial-number 1))
+current-serial-number)))
+(define entry-sn-generator (make-serial-number-generator))
+(entry-sn-generator)
+(entry-sn-generator)
+
+; When  make-serial-number-generator  is  called,  it  creates  a  local
+; environment  with a  binding for  current-serial-number whose  initial
+; value is  0, then, within  this environment, creates a  procedure. The
+; local environment is stored within the created procedure object and so
+; persists for  the lifetime of  the created procedure.  Every  time the
+; created procedure is invoked, it  increments the value of the current-
+; serial-number binding in the captured environment and then returns the
+; current value.   Note that make-serial-number-generator can  be called
+; again to create  a second serial number generator  that is independent
+; of the  first. Every  new invocation of  make-serial- number-generator
+; creates a new local let environment and returns a new procedure object
+; with an association to this environment.
+
+
+; 3.4.7 Example 2: A Shared Persistent Variable
+
+; This example  uses closure to  create two procedures,  get-balance and
+; deposit, that  both refer  to the same  captured local  environment so
+; that they  can both  access the balance  variable binding  inside that
+; environment. The value of this variable binding persists between calls
+; to either procedure.  Note that  the captured balance variable binding
+; is private to  these two procedures: it is not  directly accessible to
+; any other code. It can only  be accessed indirectly via get-balance or
+; deposit, as illustrated by the withdraw procedure.
+
+(define get-balance #f)
+(define deposit #f)
+
+; (let ((balance 0))
+; (set! get-balance
+; (lambda ()
+; balance))
+; (set! deposit32
+; (lambda (amount)
+; (set! balance (+ balance amount))
+; balance)))
+
+(define (withdraw amount)
+  (deposit (- amount)))
+
+(get-balance)
+
+
+(deposit 1300)
+
+
+
+
+; An important detail here is that the get-balance and deposit variables
+; must be set up  by defineing them at top level  and then set!ing their
+; values inside the let body. Using define within the let body would not
+; work:  this  would  create  variable bindings  within  the  local  let
+; environment that would not be accessible at top level.
+
+; 3.4.9 Example 4: Object Orientation
+
+; Closure  is  the  capture  of an  environment,  containing  persistent
+; variable bindings,  within the definition of  a procedure or a  set of
+; related procedures. This is rather similar  to the idea in some object
+; oriented languages  of encapsulating a  set of related  data variables
+; inside an “object”,  together with a set of “methods”  that operate on
+; the encapsulated data. The following  example shows how closure can be
+; used to  emulate the  ideas of objects,  methods and  encapsulation in
+; Scheme.
+
+(define (make-account)
+(let ((balance 0))
+(define (get-balance)
+balance)
+(define (deposit amount)
+(set! balance (+ balance amount))
+balance)
+(define (withdraw amount)
+(deposit (- amount)))
+(lambda args
+(apply
+(case (car args)
+((get-balance) get-balance)
+((deposit) deposit)
+((withdraw) withdraw)
+(else (error "Invalid method!")))
+(cdr args)))))
+
+; Each call to make-account creates and returns a new procedure, created
+; by the expres- sion in the example code that begins “(lambda args”
+
+(define my-account (make-account))
+
+; my-account
+
+;#<procedure args>
+
+; This procedure  acts as  an account  object with  methods get-balance,
+; deposit and withdraw. To apply one  of the methods to the account, you
+; call the procedure with a symbol indicating the required method as the
+; first parameter, followed by any other parameters that are required by
+; that method.
+
+(my-account 'get-balance)
+
+(my-account 'withdraw 5)
+
+(my-account 'deposit 396)
+
+(my-account 'get-balance)
+
+; Note how,  in this example,  both the  current balance and  the helper
+; procedures get- balance,  deposit and withdraw, used  to implement the
+; guts of  the account object’s  meth- ods,  are all stored  in variable
+; bindings within the  private local environment captured  by the lambda
+; expression that creates the account object procedure.
+
+
+; 3.5 Further Reading
+
+;  The website  http://www.schemers.org/ is a good  starting point for
+; all things Scheme.
+
+;  Dorai  Sitaram’s online Scheme  tutorial, Teach Yourself  Scheme in
+; Fixnum                             Days,                            at
+; http://www.ccs.neu.edu/home/dorai/t-y-scheme/t-y-scheme.html. Includes
+; a nice explanation of continuations.
+
+;   The complete  text  of Structure  and  Interpretation of  Computer
+; Programs, the classic  introduction to computer science  and Scheme by
+; Hal Abelson, Jerry Sussman and  Julie Sussman, is now available online
+; at  http://mitpress.mit.edu/sicp/sicp.html.  This  site also  provides
+; teaching materials related  to the book, and all the  source code used
+; in the book, in a form suitable for loading and running.
+
+; 4 Programming in Scheme
+
+; Guile’s core language  is Scheme, and a lot can  be achieved simply by
+; using Guile to write and run Scheme programs — as opposed to having to
+; dive into C  code. In this part  of the manual, we explain  how to use
+; Guile in this mode, and describe the tools that Guile provides to help
+; you with  script writing, debugging,  and packaging your  programs for
+; distribution.  For  detailed reference  information on  the variables,
+; functions,  and so  on that  make up  Guile’s application  programming
+; interface (API), see Chapter 6 [API Reference],
+
+
+; 4.1 Guile’s Implementation of Scheme
+
+; Guile’s core language  is Scheme, which is specified  and described in
+; the  series of  reports  known  as RnRS.  RnRS  is  shorthand for  the
+; Revisedn  Report on  the Algorithmic  Language Scheme.  Guile complies
+; fully with R5RS  (see Section “Introduction” in R5RS),  and is largely
+; compliant with R6RS and R7RS.  Guile  also has many extensions that go
+; beyond these reports.  Some of the areas where  Guile extends standard
+; Scheme are:
+
+;  Guile’s interactive documentation system
+;  Guile’s support for POSIX-compliant network programming
+;  GOOPS – Guile’s framework for object oriented programming
+
+; 4.2 Invoking Guile
+
+; Many features  of Guile depend  on and  can be changed  by information
+; that the user  provides either before or when Guile  is started. Below
+; is a description of what information to provide and how to provide it.
+
+; 4.2.1 Command-line Options
+
+; Here  we describe  Guile’s  command-line processing  in detail.  Guile
+; processes its arguments  from left to right,  recognizing the switches
+; described below. For examples, see Section 4.3.4 [Scripting Examples],
+
+
+; script arg...
+
+; -s script arg...  By default, Guile will read
+
+; a  file named  on  the command  line as  a  script.  Any  command-line
+; arguments arg... following script become the script’s argu- ments; the
+; command-line function  returns a list  of strings of the  form (script
+; arg... ).  It is  possible to name a file using  a leading hyphen, for
+; example, ‘-myfile.scm’.
+
+; In this case,  the file name must  be preceded by ‘-s’  to tell Guile
+;that a (script)  file is being named.  Scripts are  read and evaluated
+;as Scheme source  code just as the load function  would. After loading
+; script, Guile exits.
+
+; -c expr  arg...  Evaluate
+
+; expr  as  Scheme  code,  and then  exit.  Any  command-line  arguments
+; arg... following expr become  command-line arguments; the command-line
+; func-36 Guile Reference  Manual tion returns a list of  strings of the
+; form (guile arg... ), where guile is the path of the Guile executable.
+
+; -- arg...  Run  interactively, prompting the user  for expressions and
+; evaluating them.
+
+; Any command-line arguments arg... following the ‘--’
+; become  command-line  arguments  for   the  interactive  session;  the
+; command-line function  returns a  list of strings  of the  form (guile
+; arg...  ), where  guile  is  the path  of  the  Guile executable.
+
+; -L
+
+; directory Add directory to the front  of Guile’s module load path. The
+; given directories are searched in the  order given on the command line
+; and  before   any  directories  in  the   GUILE_LOAD_PATH  environment
+; variable. Paths added  here are not in effect during  execution of the
+; user’s ‘.guile’  file.
+
+; -C directory  Like ‘-L’, but adjusts  the load
+; path for  compiled files.
+
+; -x extension
+
+;  -l file Add extension to thefront of Guile’s load extension list (see
+; Section 6.16.8 [Load Paths].
+
+;  The specified extensions are tried in  the order given on the command
+; line, and  before the default  load extensions. Extensions  added here
+; are not in effect during execution  of the user’s ‘.guile’ file.  Load
+; Scheme  source code  from file,  and continue  processing the  command
+; line.
+
+; -e  function
+
+; -ds Make  function the entry  point of  the script. After  loading the
+; script  file (with  ‘-s’) or  evaluating the  expression (with  ‘-c’),
+; apply  function  to  a  list  containing  the  program  name  and  the
+; command-line arguments—the list provided by the command-line function.
+
+; A ‘-e’  switch can  appear anywhere  in the  argument list,  but Guile
+; always invokes the  function as the last action it  performs.  This is
+; weird, but because of the way script invocation works under POSIX, the
+; ‘-s’ option must  always come last in the list.   The function is most
+; often a  simple symbol that  names a function  that is defined  in the
+; script.  It can  also be of the  form (@ module-name symbol  ), and in
+; that case,  the symbol is looked  up in the module  named module-name.
+; As a shorthand you  can use the form (symbol ...), that  is, a list of
+; only  symbols that  doesn’t  start  with @.  It  is  equivalent to  (@
+; module-name  main),  where  module-name  is (symbol  ...)   form.  See
+
+; Section 6.18.2  [Using Guile  Modules], and Section  4.3.4 [Scripting
+; Examples].  Treat a final ‘-s’ option  as if it occurred at this point
+; in the command  line; load the script here.  This  switch is necessary
+; because, although the POSIX  script invocation mech- anism effectively
+; requires the ‘-s’ option to appear  last, the programmer may well want
+; to run the script before other  actions requested on the command line.
+; For examples, see Section 4.3.4 [Scripting Examples].
+
+; \ 37
+
+; Read  more command-line arguments, starting from  the second line
+; of the  script file.  See Section  4.3.2 [The  Meta Switch].
+
+; --use-srfi=list
+
+; The option
+
+; ‘--use-srfi’
+
+; expects a comma-separated list of  numbers, each rep- resenting a SRFI
+; module to  be loaded into  the interpreter before evaluating  a script
+; file or  starting the REPL.  Additionally, the feature  identifier for
+; the loaded SRFIs is recognized  by the procedure cond-expand when this
+; option is used.
+
+
+; Here  is an  example that  loads  the modules  SRFI-8 (’receive’)  and
+; SRFI-13 (’string  library’) before  the GUILE interpreter  is started:
+
+; guile
+
+; --use-srfi=8,13
+; --r6rsAdapt
+
+; Guile’s  initial  environment  to better support R6RS.
+; See  Section 7.6.1 [R6RS Incompatibilities],  for some  caveats.
+
+; --r7rsAdapt
+
+; Guile’s initial  environment to better support R7RS.
+; See  Section 7.7.1 [R7RS Incompatibilities],
+
+; for  some  caveats.
+
+; --debugStart
+
+
+;  with the debugging virtual machine  (VM) engine.  Using the debugging
+; VM will  enable support for  VM hooks,  which are needed  for tracing,
+; break- points, and accurate call  counts when profiling. The debugging
+; VM is slower  than the regular VM, though, by  about ten percent.  See
+; Section 6.26.4.1  [VM Hooks], for  more information.  By  default, the
+; debugging VM engine is only used when entering an interactive session.
+; When executing  a script with ‘-s’  or ‘-c’, the normal,  faster VM is
+; used by default.
+
+ ;--no-debug -q
+
+; Do  not use the debugging VM engine,  even when entering
+; an interactive  session.  Note that,  despite the name,  Guile running
+; with
+
+; ‘--no-debug’
+
+; does support the usual debugging facilities, such as
+; printing a  detailed backtrace upon  error.  The only  difference with
+
+; ‘--debug’
+
+; is  lack of  support for  VM hooks  and the  facilities that
+; build  upon it  (see above).   Do  not load  the initialization  file,
+; ‘.guile’. This option  only has an effect  when running interactively;
+;running scripts  does not  load the ‘.guile’  file. See  Section 4.4.1
+; [Init File].
+
+; --listen[=p ]
+
+; While this  program runs, listen  on a local port  or a path  for REPL
+; clients. If p starts  with a number, it is assumed to  be a local port
+; on which to listen.  If it starts with a forward  slash, it is assumed
+; to be the file name of a UNIX  domain socket on which to listen.  If p
+; is not  given, the  default is local  port 37146.  If  you look  at it
+; upside down, it almost spells  “Guile”.  If you have netcat installed,
+; you  should   be  able  to  nc   localhost  37146  and  get   a  Guile
+; prompt. Alternately you can fire up  Emacs and connect to the process;
+; see Section 4.5 [Using Guile in Emacs], page 56 for more details.
+
+
+; to do  anything Guile can  do, as the user  that the Guile  process is
+; running as. Do  not use
+
+; ‘--listen’
+
+; on multi-user  machines. Of course,
+; if you do not pass
+
+; ‘--listen’
+
+; to Guile,  no port will  be opened.   Guile protects against  the HTTP
+; inter-protocol  exploitation attack,  a scenario  whereby an  attacker
+; can, via an HTML page, cause a web browser to send data to TCP servers
+; listening on  a loopback interface or  private network.
+
+; Nevertheless, you are advised to use UNIX domain sockets, as in
+
+--listen=/some/local/file,
+
+; when- ever possible.  That said,
+
+; ‘--listen’
+
+; is   great  for   interactive   debugging   and  development.
+
+; Note:
+
+; --auto-compile
+
+; Compile source  files automatically (default behavior).
+
+; --fresh-auto-compile
+
+; Treat  the  auto-compilation cache  as  invalid,
+; forcing  recompilation.
+
+; --no-auto-compile
+
+; Disable  automatic  source file compilation.
+
+; --language=lang
+
+; For the  remainder of  the command line  arguments, assume  that files
+; mentioned with
+
+; -l and expressions passed  with
+
+; -c are written in lang.
+
+;  lang  must be  the name  of  one of  the languages  supported by  the
+; compiler (see Section 9.4.1  [Compiler Tower]. When run interactively,
+; set  the  REPL’s  language  to  lang (see  Section  4.4  [Using  Guile
+; Interactively].   The default  language is  scheme; other  interesting
+; values include  elisp (for Emacs  Lisp), and ecmascript.   The example
+; below shows the  evaluation of expressions in Scheme,  Emacs Lisp, and
+; ECMAScript:
+
+; guile -c "(apply + ’(1 2))"
+; guile --language=elisp -c "(= (funcall (symbol-function ’+) 1 2) 3)"
+; guile --language=ecmascript -c ’(function (x) { return x * x; })(2);’
+
+; To load a  file written in Scheme  and one written in  Emacs Lisp, and
+; then start a Scheme REPL, type:
+
+; guile -l foo.scm --language=elisp -l foo.el --language=scheme
+
+; -h, --help
+; Display help on invoking Guile, and then exit.
+
+; -v, --version
+; Display the current version of Guile, and then exit.

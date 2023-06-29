@@ -1,0 +1,59 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-beginner-reader.ss" "lang")((modname equation) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
+#!/usr/local/guile -s
+#!/usr/bin/racket
+
+
+;; At first glance, function are like expressions alway with a y
+;; the left, followed by an sign and expression however the note
+;; you aften see school for function is utterly missleading.
+;; In DrRacket, you therefore write function a bit different.
+
+(define (y x) (* x x))
+
+;; The define says “consider y a function,” which, like an
+;; expression, computes a value. A function’s value, though,
+;; depends on the value of something called the input, which
+;; we express with (y x). Since we don’t know what this input
+;; is, we use a name to represent the input. Following the
+;; mathematical tradition, we use x here to stand in for the
+;; unknown input; but pretty soon, we will use all kinds
+;; of names.
+
+;; This second part means you must supply one number—for
+;; x—to determine a specific value for y. When you do,
+;; DrRacket plugs the value for x into the expression
+;; associated with the function. Here the expression
+;; is (* x x). Once x is replaced with a value, say 1,
+;; DrRacket can compute the result of the expressions,
+;; which is also called the output of the function.
+
+;; Click RUN and watch nothing happen. Nothing shows up
+;; in the interactions area. Nothing seems to change anywhere
+;; else in DrRacket. It is as if you hadn’t accomplished
+;; anything. But you did. You actually defined a function
+;; and informed DrRacket about its existence. As a matter
+;; of fact, the latter is now ready for you to use the
+;; function. Enter
+
+(y 1)
+
+;; at the prompt in the interactions area and watch a 1 appear
+;; in response. The (y 1) is called a function application in
+;; DrRacket.Mathematics also calls y(1) a function application,
+;; but your teachers forgot to tell you. Try
+
+(y 2)
+
+;; and see a 4 pop out. Of course, you can also enter all these
+;; expressions in the definitions area and click RUN:
+
+(y 110) ;; values to all humanity
+(y 120) ;; values to all humanity
+(y 130) ;; values to all humanity
+(y 150) ;; values to all humanity
+(y 150) ;; values to all humanity
+
+
+
